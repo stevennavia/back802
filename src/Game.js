@@ -514,7 +514,13 @@ export class Game {
     if (cover) cover.classList.add('hidden');
 
     const touchBtn = document.getElementById('touch-interact');
-    if (touchBtn) touchBtn.style.display = '';
+    if (touchBtn) {
+      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        touchBtn.style.display = 'block';
+      } else {
+        touchBtn.style.display = '';
+      }
+    }
 
     if (!window.matchMedia('(pointer: coarse)').matches) {
       this.audioManager.startCorridorMusic();
