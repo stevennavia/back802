@@ -113,7 +113,7 @@
       background: url('/portada.png') center/cover no-repeat;
     }
     #cover-btn {
-      position: relative; z-index: 1; margin-top: 55vh;
+      position: relative; z-index: 1; margin-top: 75vh;
       background: rgba(0,0,0,0.5); color: #ddd;
       border: 1px solid rgba(255,255,255,0.2);
       border-radius: 8px; padding: 12px 40px;
@@ -122,6 +122,47 @@
       transition: background 0.3s;
     }
     #cover-btn:hover { background: rgba(0,0,0,0.7); }
+    #tutorial {
+      position: fixed; bottom: 100px; left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.3);
+      font-family: 'Courier New', monospace;
+      font-size: 13px; text-align: center;
+      z-index: 12; pointer-events: none;
+      transition: opacity 0.8s;
+    }
+    #touch-interact {
+      display: none; position: fixed; bottom: 40px; right: 30px;
+      width: 70px; height: 70px; border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.7);
+      font-family: 'Courier New', monospace; font-size: 20px;
+      z-index: 60; pointer-events: auto; cursor: pointer;
+      touch-action: manipulation;
+    }
+    @media (pointer: coarse) {
+      #touch-interact { display: block; }
+      #reticle, #context-text { display: none; }
+    }
+    @keyframes wiggle {
+      0%, 100% { transform: translateX(-50%) rotate(0deg); }
+      20% { transform: translateX(-50%) rotate(-6deg); }
+      40% { transform: translateX(-50%) rotate(6deg); }
+      60% { transform: translateX(-50%) rotate(-4deg); }
+      80% { transform: translateX(-50%) rotate(4deg); }
+    }
+    #timer.wiggle { animation: wiggle 0.5s ease-in-out 3; }
+    @media (max-width: 600px) {
+      #timer { font-size: 5vw; }
+      #npc-text { font-size: 4.5vw; min-height: 4em; }
+      #npc-portrait { width: 120px; height: 120px; }
+      #npc-dialog-box { flex-direction: column; align-items: center; max-width: 92%; }
+      #npc-content { align-items: center; }
+      #npc-name { text-align: center; }
+      #win-text { font-size: 8vw; }
+      #cover-btn { font-size: 4vw; padding: 10px 30px; margin-top: 80vh; }
+    }
     #npc-dialog {
       display: none; position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
@@ -156,6 +197,11 @@
       font-size: 18px; line-height: 1.6; text-align: left;
       margin: 0; min-height: 3em;
     }
+    #npc-name {
+      color: #aaa; font-family: 'Courier New', monospace;
+      font-size: 16px; font-weight: bold; letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: -8px;
+    }
     #npc-ok-btn {
       background: #333; color: #fff; border: 1px solid #555;
       border-radius: 6px; padding: 8px 32px;
@@ -172,6 +218,7 @@
     <div id="context-text"></div>
     <div id="message" class="message"></div>
     <div id="dizzy-overlay"></div>
+    <div id="tutorial">wasd para moverte / mouse para mirar</div>
     <div id="timer">5:00</div>
     <div id="gameover">
       <div id="gameover-text">GAME OVER</div>
@@ -184,6 +231,7 @@
       <div id="npc-dialog-box">
         <img id="npc-portrait" src="/gon2.png" alt="" />
         <div id="npc-content">
+          <div id="npc-name"></div>
           <p id="npc-text"></p>
           <button id="npc-ok-btn">[F] para continuar</button>
         </div>
@@ -194,6 +242,7 @@
     <div id="cover-bg"></div>
     <button id="cover-btn">Comenzar</button>
   </div>
+  <button id="touch-interact">F</button>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

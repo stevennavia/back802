@@ -120,5 +120,5 @@ export const PUZZLE = {
   },
 };
 
-export const LIGHTS_OUT_DURATION = 15;
-export const DIZZY_DURATION = 20;
+export const LIGHTS_OUT_DURATION = 30;
+export const DIZZY_DURATION = 15;

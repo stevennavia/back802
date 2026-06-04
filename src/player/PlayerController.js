@@ -37,7 +37,87 @@ export class PlayerController {
 
     this._euler = new THREE.Euler(0, 0, 0, 'YXZ');
 
+    this._setupTouchControls(domElement);
     this._setupListeners(domElement);
+  }
+
+  _setupTouchControls(el) {
+    this._touchMoveId = null;
+    this._touchLookId = null;
+    this._touchMoveCenter = { x: 0, y: 0 };
+    this._touchLookLast = { x: 0, y: 0 };
+
+    el.addEventListener('touchstart', (e) => {
+      this.locked = true;
+      for (const touch of e.changedTouches) {
+        const x = touch.clientX;
+        const y = touch.clientY;
+        const half = window.innerWidth / 2;
+
+        if (x < half && this._touchMoveId === null) {
+          this._touchMoveId = touch.identifier;
+          this._touchMoveCenter.x = x;
+          this._touchMoveCenter.y = y;
+        } else if (x >= half && this._touchLookId === null) {
+          this._touchLookId = touch.identifier;
+          this._touchLookLast.x = x;
+          this._touchLookLast.y = y;
+        }
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+      for (const touch of e.changedTouches) {
+        const x = touch.clientX;
+        const y = touch.clientY;
+
+        if (touch.identifier === this._touchMoveId) {
+          const dx = x - this._touchMoveCenter.x;
+          const dy = y - this._touchMoveCenter.y;
+          const dead = 20;
+
+          this.moveLeft = dx < -dead;
+          this.moveRight = dx > dead;
+          this.moveForward = dy < -dead;
+          this.moveBackward = dy > dead;
+        }
+
+        if (touch.identifier === this._touchLookId) {
+          const dx = x - this._touchLookLast.x;
+          const dy = y - this._touchLookLast.y;
+          this._euler.setFromQuaternion(this.camera.quaternion);
+          this._euler.y -= dx * this.mouseSensitivity;
+          this._euler.x -= dy * this.mouseSensitivity;
+          this.camera.quaternion.setFromEuler(this._euler);
+          this._touchLookLast.x = x;
+          this._touchLookLast.y = y;
+        }
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e) => {
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === this._touchMoveId) {
+          this._touchMoveId = null;
+          this.moveForward = false;
+          this.moveBackward = false;
+          this.moveLeft = false;
+          this.moveRight = false;
+        }
+        if (touch.identifier === this._touchLookId) {
+          this._touchLookId = null;
+        }
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchcancel', () => {
+      this._touchMoveId = null;
+      this._touchLookId = null;
+      this.moveForward = false;
+      this.moveBackward = false;
+      this.moveLeft = false;
+      this.moveRight = false;
+    }, { passive: true });
   }
 
   _onMouseMove(event) {

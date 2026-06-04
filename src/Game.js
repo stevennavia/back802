@@ -67,10 +67,10 @@ export class Game {
     this.interactPressed = false;
     this.npcPosition = null;
     this.dialogParts = [
-      'Creo que perdi mis llaves jeje xd',
-      'Kiltro me dijo que había instalado un nuevo sistema para entrar',
-      'Algo tenía que ver el choapino',
-      'Si te apuras alcanzamos a llegar al 4:20',
+      'Creo que perdi mis llaves jeje xd.',
+      'Kiltro me dijo que había instalado un nuevo sistema para entrar.',
+      'Algo tenía que ver el choapino.',
+      'Si te apuras alcanzamos a llegar al 4:20.',
     ];
     this.dialogPart = 0;
 
@@ -102,7 +102,20 @@ export class Game {
     this.room802Created = false;
     this.room802Colliders = [];
 
+    this.cameraDialogDone = false;
+    this.cameraDialogOpen = false;
+    this.secondDialogActive = false;
+    this.cameraOpenedSecond = false;
+
+    this.neonMode = false;
+    this.neonTimer = 0;
+    this.neonReady = false;
+
     this.setupScene();
+
+    this.origAmbient = this.ambientLight ? this.ambientLight.intensity : 0.3;
+    this.origDir = this.dirLight ? this.dirLight.intensity : 0.22;
+    this.origFill = this.fillLight ? this.fillLight.intensity : 0.1;
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyF') {
@@ -117,9 +130,33 @@ export class Game {
     document.getElementById('npc-ok-btn').addEventListener('click', () => {
       if (this.dialogOpen) this._advanceDialog();
     });
+
+    const touchBtn = document.getElementById('touch-interact');
+    if (touchBtn) {
+      touchBtn.addEventListener('click', () => { this.interactPressed = true; });
+      touchBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.interactPressed = true;
+      }, { passive: false });
+    }
   }
 
   _advanceDialog() {
+    if (this.cameraDialogOpen) {
+      this.cameraDialogOpen = false;
+      this.dialogOpen = false;
+      this.uiManager.hideNPCDialog();
+      this.cameraDialogDone = true;
+      if (this.ceilingLights) this.ceilingLights.startRedFlash();
+      return;
+    }
+    if (this.secondDialogActive) {
+      this.secondDialogActive = false;
+      this.dialogOpen = false;
+      this.uiManager.hideNPCDialog();
+      this._cutTimerInHalf();
+      return;
+    }
     this.dialogPart++;
     if (this.dialogPart >= this.dialogParts.length) {
       this.audioManager.stopGontalk();
@@ -153,6 +190,7 @@ export class Game {
     if (type === 'door') Doors.cycleColor(group, colorHex);
     else if (type === 'electrical') ElectricalDoor.cycleColor(group, colorHex);
     else if (type === 'escape') EscapeDoor.cycleColor(group, colorHex);
+    if (this.neonMode && this.neonReady) this._applyDoorNeon(group, nextIdx);
     this._checkPuzzleSolved();
   }
 
@@ -182,6 +220,59 @@ export class Game {
     }
     this.won = true;
     this.wonTimer = 0;
+  }
+
+  _lightsOut() {
+    this.lightsOut = true;
+    this.lightsOutTimer = 0;
+    this.ambientLight.intensity = 0.04;
+    this.ambientLight.color.setHex(0x223355);
+    this.dirLight.intensity = 0.03;
+    this.fillLight.intensity = 0.01;
+
+    for (const [key, group] of this.doors) {
+      const mesh = group.children[3];
+      if (!mesh || !mesh.material) continue;
+      mesh.material.emissive = new THREE.Color(0x00ffaa);
+      mesh.material.emissiveIntensity = 0.4;
+    }
+  }
+
+  _triggerDizzy() {
+    this.dizzy = true;
+    this.dizzyTimer = 0;
+    if (this.dizzyOverlay) this.dizzyOverlay.style.opacity = '0.5';
+  }
+
+  _cutTimerInHalf() {
+    this.timerDuration = Math.floor(this.timerDuration / 2);
+    this.timerElement.classList.add('wiggle');
+    setTimeout(() => this.timerElement.classList.remove('wiggle'), 1500);
+    this.uiManager.showMessage('Tiempo reducido a la mitad', 'error', 2000);
+  }
+
+  _applyDoorNeon(group, colorIdx) {
+    const mesh = group.children[3];
+    if (!mesh || !mesh.material) return;
+    const neonColors = [0x000000, 0xff3333, 0x3366ff, 0xffdd33];
+    mesh.material.emissive = new THREE.Color(neonColors[colorIdx] || 0x000000);
+    mesh.material.emissiveIntensity = colorIdx > 0 ? 0.5 : 0;
+  }
+
+  _applyNeonToAllDoors() {
+    for (const [key, group] of this.doors) {
+      const colorIdx = this.doorColors.get(key) || 0;
+      this._applyDoorNeon(group, colorIdx);
+    }
+  }
+
+  _removeNeonFromAllDoors() {
+    for (const [key, group] of this.doors) {
+      const mesh = group.children[3];
+      if (!mesh || !mesh.material) continue;
+      mesh.material.emissive = new THREE.Color(0x000000);
+      mesh.material.emissiveIntensity = 0;
+    }
   }
 
   _createRoom802() {
@@ -392,7 +483,25 @@ export class Game {
   }
 
   start() {
-    document.getElementById('cover-btn').addEventListener('click', () => this.startFromCover());
+    this.audioManager.init();
+    this.audioManager.startAmbient();
+
+    const resumeAudio = () => {
+      if (this.audioManager.ctx && this.audioManager.ctx.state === 'suspended') {
+        this.audioManager.ctx.resume();
+      }
+    };
+    document.addEventListener('click', resumeAudio, { once: true });
+    document.addEventListener('touchstart', resumeAudio, { once: true });
+
+    const coverBtn = document.getElementById('cover-btn');
+    if (coverBtn) {
+      coverBtn.addEventListener('click', () => this.startFromCover());
+      coverBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.startFromCover();
+      }, { passive: false });
+    }
     window.addEventListener('keydown', () => {
       const cover = document.getElementById('cover');
       if (cover && !cover.classList.contains('hidden')) this.startFromCover();
@@ -404,8 +513,6 @@ export class Game {
     const cover = document.getElementById('cover');
     if (cover) cover.classList.add('hidden');
 
-    this.audioManager.init();
-    this.audioManager.startAmbient();
     this.audioManager.startCorridorMusic();
     this.audioManager.startElevatorMusic();
 
@@ -483,6 +590,15 @@ export class Game {
       }
     }
 
+    const tutorial = document.getElementById('tutorial');
+    if (tutorial) {
+      if (this.elevatorOpened && this.playerController.position.x > 2) {
+        tutorial.style.opacity = '0.9';
+      } else {
+        tutorial.style.opacity = '0';
+      }
+    }
+
     if (this.elevatorOpened && this.npcPosition) {
       const dist = this.playerController.position.distanceTo(this.npcPosition);
       if (dist < 2) {
@@ -502,6 +618,35 @@ export class Game {
         }
       } else if (!this.dialogOpen) {
         this.uiManager.hideInteraction();
+      }
+    }
+
+    if (this.elevatorOpened && !this.won && !this.gameOver && !this.cameraDialogDone && !this.dialogOpen) {
+      const camPos = this.securityCam.group.position;
+      const toCam = new THREE.Vector3().copy(camPos).sub(this.camera.position);
+      const dist = toCam.length();
+      toCam.normalize();
+      const dir = new THREE.Vector3();
+      this.camera.getWorldDirection(dir);
+      const angle = dir.angleTo(toCam);
+      if (dist < 4 && angle < 0.8) {
+        this.uiManager.showInteraction('[F] para interactuar');
+        if (this.interactPressed) {
+          this.interactPressed = false;
+          this.uiManager.showCameraDialog('Tiene que mover el auto, le dije ya.');
+          this.cameraDialogOpen = true;
+          this.dialogOpen = true;
+        }
+      }
+    }
+
+    if (this.cameraDialogDone && this.ceilingLights && !this.won) {
+      this.ceilingLights.customUpdate(dt);
+      if (!this.ceilingLights.isFlashing && !this.cameraOpenedSecond && !this.dialogOpen) {
+        this.cameraOpenedSecond = true;
+        this.uiManager.showCameraDialog('ya, apurese nomas.');
+        this.secondDialogActive = true;
+        this.dialogOpen = true;
       }
     }
 
@@ -589,7 +734,23 @@ export class Game {
           this.uiManager.showInteraction('[F] Interactuar');
           if (this.interactPressed) {
             this.interactPressed = false;
-            if (!this.lightsOut) this._lightsOut();
+            if (!this.neonMode) {
+              this.neonMode = true;
+              this.neonReady = true;
+              this.ambientLight.intensity = 0.15;
+              this.ambientLight.color.setHex(0x223355);
+              this.dirLight.intensity = 0.06;
+              this.fillLight.intensity = 0.03;
+              this._applyNeonToAllDoors();
+            } else {
+              this.neonMode = false;
+              this.neonReady = false;
+              this.ambientLight.intensity = this.origAmbient;
+              this.ambientLight.color.setHex(0x9098b0);
+              this.dirLight.intensity = this.origDir;
+              this.fillLight.intensity = this.origFill;
+              this._removeNeonFromAllDoors();
+            }
           }
         } else if (nearDoor === '803') {
           this.uiManager.showInteraction('[F] Interactuar');
@@ -614,8 +775,15 @@ export class Game {
       if (this.lightsOutTimer >= LIGHTS_OUT_DURATION) {
         this.lightsOut = false;
         this.ambientLight.intensity = this.origAmbient;
+        this.ambientLight.color.setHex(0x9098b0);
         this.dirLight.intensity = this.origDir;
         this.fillLight.intensity = this.origFill;
+        for (const [key, group] of this.doors) {
+          const mesh = group.children[3];
+          if (!mesh || !mesh.material) continue;
+          mesh.material.emissive = new THREE.Color(0x000000);
+          mesh.material.emissiveIntensity = 0;
+        }
       }
     }
 

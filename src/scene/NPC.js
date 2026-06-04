@@ -15,7 +15,7 @@ export class NPC {
       '/gon.glb',
       (gltf) => {
         this.mesh = gltf.scene;
-        this.mesh.scale.set(1.1, 1.1, 1.1);
+        this.mesh.scale.set(1.15, 1.15, 1.15);
         this.mesh.rotation.y = Math.PI;
         this.mesh.position.set(-1.0, 0, 8.5);
         this.scene.add(this.mesh);
@@ -29,6 +29,10 @@ export class NPC {
 
         const box = new THREE.Box3().setFromObject(this.mesh);
         this.mesh.position.y = -box.min.y;
+
+        const faceLight = new THREE.PointLight(0xffeee0, 0.7, 5);
+        faceLight.position.set(-0.7, 1.6, 9.5);
+        this.scene.add(faceLight);
       },
       undefined,
       (err) => console.error('NPC load error:', err)

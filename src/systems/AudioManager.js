@@ -24,15 +24,18 @@ export class AudioManager {
       this.masterGain.gain.value = 0.3;
       this.masterGain.connect(this.ctx.destination);
       this.started = true;
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
     } catch (e) {
       console.warn('Audio not available');
     }
   }
 
   startAmbient() {
-    if (!this.ctx) return;
+    if (!this.ctx || this.ambientGain) return;
     this.ambientGain = this.ctx.createGain();
-    this.ambientGain.gain.value = 0.08;
+    this.ambientGain.gain.value = 0.064;
     this.ambientGain.connect(this.masterGain);
 
     const noiseBuffer = this._createNoiseBuffer(4);
@@ -58,7 +61,7 @@ export class AudioManager {
     osc.type = 'sine';
     osc.frequency.value = 60;
     const oscGain = this.ctx.createGain();
-    oscGain.gain.value = 0.025;
+    oscGain.gain.value = 0.02;
     osc.connect(oscGain);
     oscGain.connect(this.masterGain);
     osc.start();
@@ -68,7 +71,7 @@ export class AudioManager {
       if (!this.ambientGain) return;
       const now = this.ctx.currentTime;
       this.ambientGain.gain.setTargetAtTime(
-        0.06 + Math.random() * 0.04,
+        0.048 + Math.random() * 0.032,
         now,
         0.5
       );

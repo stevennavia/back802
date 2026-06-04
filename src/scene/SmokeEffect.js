@@ -44,7 +44,7 @@ export class SmokeEffect {
     this.particles = new THREE.Points(geom, this.material);
     scene.add(this.particles);
 
-    this.spawnPos = new THREE.Vector3(1.9, 0.02, 12.8);
+    this.spawnPos = new THREE.Vector3(2.4, 0.02, 12.8);
 
     for (let i = 0; i < this.maxParticles; i++) {
       this.alive[i] = 0;
@@ -104,12 +104,12 @@ export class SmokeEffect {
     this.ages[i] = 0;
     this.lifetimes[i] = 3 + Math.random() * 4;
 
-    this.positions[i * 3] = this.spawnPos.x + (Math.random() - 0.5) * 0.15;
+    this.positions[i * 3] = this.spawnPos.x + (Math.random() - 0.5) * 0.6;
     this.positions[i * 3 + 1] = this.spawnPos.y;
-    this.positions[i * 3 + 2] = this.spawnPos.z + (Math.random() - 0.5) * 0.15;
+    this.positions[i * 3 + 2] = this.spawnPos.z + (Math.random() - 0.5) * 0.3;
 
     const theta = Math.random() * Math.PI * 2;
-    const speed = 0.05 + Math.random() * 0.1;
+    const speed = 0.08 + Math.random() * 0.12;
     this.velocities[i].set(Math.cos(theta) * speed, 0.08 + Math.random() * 0.12, Math.sin(theta) * speed);
 
     this.sizes[i] = 0.06;

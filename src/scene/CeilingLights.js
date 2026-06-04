@@ -5,6 +5,10 @@ export class CeilingLights {
   constructor(scene, flicker) {
     this.scene = scene;
     this.flicker = flicker;
+    this.lights = [];
+    this.isFlashing = false;
+    this.flashTimer = 0;
+    this.flashDuration = 15;
     this.build();
   }
 
@@ -48,6 +52,7 @@ export class CeilingLights {
       const light = new THREE.PointLight(0xffe8d0, warm, 6.5, 1.6);
       light.position.set(0, H - 0.1, z);
       this.scene.add(light);
+      this.lights.push({ light, originalColor: 0xffe8d0, originalIntensity: warm });
 
       if (this.flicker) {
         this.flicker.add(light, {
@@ -75,6 +80,7 @@ export class CeilingLights {
     const coreLight = new THREE.PointLight(0xffe8d0, 0.4, 5, 1.8);
     coreLight.position.set(2.5, H - 0.1, 0);
     this.scene.add(coreLight);
+    this.lights.push({ light: coreLight, originalColor: 0xffe8d0, originalIntensity: 0.4 });
 
     if (this.flicker) {
       this.flicker.add(coreLight, {
@@ -84,6 +90,28 @@ export class CeilingLights {
         pulseAmplitude: 0.04,
         pulseSpeed: 1.0,
       });
+    }
+  }
+
+  startRedFlash() {
+    this.isFlashing = true;
+    this.flashTimer = 0;
+  }
+
+  customUpdate(dt) {
+    if (!this.isFlashing) return;
+    this.flashTimer += dt;
+    const on = Math.sin(this.flashTimer * Math.PI * 4) > 0;
+    for (const l of this.lights) {
+      l.light.color.setHex(on ? 0xdd2200 : 0x000000);
+      l.light.intensity = on ? l.originalIntensity * 0.6 : 0.01;
+    }
+    if (this.flashTimer >= this.flashDuration) {
+      this.isFlashing = false;
+      for (const l of this.lights) {
+        l.light.color.setHex(l.originalColor);
+        l.light.intensity = l.originalIntensity;
+      }
     }
   }
 }

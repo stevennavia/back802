@@ -6,6 +6,7 @@ export class UIManager {
     this.hint = document.getElementById('hint');
     this.npcDialog = document.getElementById('npc-dialog');
     this.npcText = document.getElementById('npc-text');
+    this.npcName = document.getElementById('npc-name');
     this.messageTimeout = null;
   }
 
@@ -49,6 +50,8 @@ export class UIManager {
   }
 
   showNPCDialog() {
+    document.getElementById('npc-portrait').src = '/gon2.png';
+    if (this.npcName) this.npcName.textContent = 'Gon:';
     this.npcDialog.classList.add('open');
   }
 
@@ -58,5 +61,12 @@ export class UIManager {
 
   setNPCDialogText(text) {
     this.npcText.textContent = text;
+  }
+
+  showCameraDialog(text) {
+    document.getElementById('npc-portrait').src = '/donluis.png';
+    if (this.npcName) this.npcName.textContent = 'Don Luis:';
+    this.npcText.textContent = text;
+    this.npcDialog.classList.add('open');
   }
 }
