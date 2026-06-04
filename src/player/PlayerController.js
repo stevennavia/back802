@@ -87,8 +87,8 @@ export class PlayerController {
           const dx = x - this._touchLookLast.x;
           const dy = y - this._touchLookLast.y;
           this._euler.setFromQuaternion(this.camera.quaternion);
-          this._euler.y -= dx * this.mouseSensitivity * 2.0;
-          this._euler.x -= dy * this.mouseSensitivity * 2.0;
+          this._euler.y -= dx * this.mouseSensitivity * 2.5;
+          this._euler.x -= dy * this.mouseSensitivity * 2.5;
           this.camera.quaternion.setFromEuler(this._euler);
           this._touchLookLast.x = x;
           this._touchLookLast.y = y;
