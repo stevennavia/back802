@@ -99,3 +99,26 @@ export const PLAYER = {
   runSpeed: 5.0,
   mouseSensitivity: 0.001,
 };
+
+export const PUZZLE = {
+  colors: [null, 0xcc3333, 0x3355cc, 0xccaa33],
+  solution: {
+    810: 3,
+    809: 0,
+    808: 0,
+    807: 1,
+    806: 0,
+    805: 0,
+    804: 1,
+    812: 1,
+    electrical_upper: 1,
+    escape_top: 0,
+    escape_bottom: 3,
+    electrical_lower: 0,
+    801: 1,
+    802: 3,
+  },
+};
+
+export const LIGHTS_OUT_DURATION = 20;
+export const DIZZY_DURATION = 20;

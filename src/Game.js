@@ -7,12 +7,15 @@ import { LightFlicker } from './systems/LightFlicker.js';
 import { Hallway } from './scene/Hallway.js';
 import { Doors } from './scene/Doors.js';
 import { ElectricalDoor } from './scene/ElectricalDoor.js';
+import { EscapeDoor } from './scene/EscapeDoor.js';
 import { ElevatorCore } from './scene/ElevatorCore.js';
 import { CeilingLights } from './scene/CeilingLights.js';
 import { Signage } from './scene/Signage.js';
 import { SecurityCam } from './scene/SecurityCam.js';
 import { Rug } from './scene/Rug.js';
 import { NPC } from './scene/NPC.js';
+import { PuzzleBox } from './scene/PuzzleBox.js';
+import { SmokeEffect } from './scene/SmokeEffect.js';
 import {
   MAP,
   BOUNDS,
@@ -20,12 +23,15 @@ import {
   ELEVATOR_CABIN,
   ELEVATOR,
   PLAYER,
+  PUZZLE,
   LEFT_DOORS,
   RIGHT_OFFICE_DOORS,
   ELECTRICAL_Z,
   TOP_DOOR,
   BOTTOM_DOOR,
   COLORS,
+  LIGHTS_OUT_DURATION,
+  DIZZY_DURATION,
 } from './utils/constants.js';
 
 export class Game {
@@ -63,7 +69,7 @@ export class Game {
     this.dialogParts = [
       'Creo que perdi mis llaves jeje xd',
       'Kiltro me dijo que había instalado un nuevo sistema para entrar',
-      'Me dijo algo de la alfombra',
+      'Algo tenía que ver el choapino',
       'Si te apuras alcanzamos a llegar al 4:20',
     ];
     this.dialogPart = 0;
@@ -73,6 +79,22 @@ export class Game {
     this.timerRunning = false;
     this.timerElement = document.getElementById('timer');
     this.gameOver = false;
+
+    this.doorColors = new Map();
+    this.puzzleSolution = PUZZLE.solution;
+    this.puzzleSolved = false;
+    this.keyObtained = false;
+    this.won = false;
+    this.box = null;
+    this.puzzleDoorKeys = [];
+    this.wonTimer = 0;
+
+    this.lightsOut = false;
+    this.lightsOutTimer = 0;
+
+    this.dizzy = false;
+    this.dizzyTimer = 0;
+    this.dizzyOverlay = document.getElementById('dizzy-overlay');
 
     this.setupScene();
 
@@ -97,14 +119,84 @@ export class Game {
       this.audioManager.stopGontalk();
       this.dialogOpen = false;
       this.uiManager.hideNPCDialog();
-      this.timerRunning = true;
-      this.timerElement.classList.add('visible');
-      this.audioManager._playBeep(660, 0.15, 0.2);
-      setTimeout(() => this.audioManager._playBeep(880, 0.2, 0.2), 200);
+      if (!this.timerRunning) {
+        this.timerRunning = true;
+        this.timerElement.classList.add('visible');
+        this.audioManager._playBeep(660, 0.15, 0.2);
+        setTimeout(() => this.audioManager._playBeep(880, 0.2, 0.2), 200);
+      }
     } else {
       this.uiManager.setNPCDialogText(this.dialogParts[this.dialogPart]);
       this.audioManager.playGontalk();
     }
+  }
+
+  _cycleDoorColor(key) {
+    const group = this.doors.get(key);
+    if (!group) return;
+    const idx = this.doorColors.get(key) || 0;
+    const type = group.userData.cycleType || 'door';
+    const skipByType = { door: 2, electrical: 3, escape: 1 };
+    const skip = skipByType[type] || -1;
+
+    let nextIdx = (idx + 1) % 4;
+    if (nextIdx === skip) nextIdx = (nextIdx + 1) % 4;
+
+    this.doorColors.set(key, nextIdx);
+    const colorHex = PUZZLE.colors[nextIdx];
+    if (type === 'door') Doors.cycleColor(group, colorHex);
+    else if (type === 'electrical') ElectricalDoor.cycleColor(group, colorHex);
+    else if (type === 'escape') EscapeDoor.cycleColor(group, colorHex);
+    this._checkPuzzleSolved();
+  }
+
+  _checkPuzzleSolved() {
+    for (const [key, target] of Object.entries(this.puzzleSolution)) {
+      if ((this.doorColors.get(key) || 0) !== target) return;
+    }
+    this.puzzleSolved = true;
+    if (this.box) {
+      this.box.open();
+      const bp = this.box.getBoxWorldPosition();
+      this.playerController.autoZoom = new THREE.Vector3(bp.x, bp.y + 0.2, bp.z - 1);
+      this.playerController.lock();
+    }
+    this.audioManager.playCorrect();
+  }
+
+  _takeKey() {
+    if (this.keyObtained) return;
+    this.keyObtained = true;
+    if (this.box) this.box.takeKey();
+    this.uiManager.hideInteraction();
+
+    const door802 = this.doors.get(802);
+    if (door802) this.scene.remove(door802);
+
+    const winLight = new THREE.PointLight(0xffffff, 50, 20);
+    winLight.position.set(2, 1.5, 12.8);
+    this.scene.add(winLight);
+
+    const winOverlay = document.getElementById('win-overlay');
+    if (winOverlay) winOverlay.classList.add('open');
+
+    this.playerController.unlock();
+    this.won = true;
+    this.wonTimer = 0;
+  }
+
+  _lightsOut() {
+    this.lightsOut = true;
+    this.lightsOutTimer = 0;
+    this.ambientLight.intensity = 0.02;
+    this.dirLight.intensity = 0.01;
+    this.fillLight.intensity = 0;
+  }
+
+  _triggerDizzy() {
+    this.dizzy = true;
+    this.dizzyTimer = 0;
+    if (this.dizzyOverlay) this.dizzyOverlay.style.opacity = '0.35';
   }
 
   setupScene() {
@@ -117,36 +209,63 @@ export class Game {
       this.playerController.addCollisionBox(door.rightDoor);
     }
 
+    const storeDoor = (key, group, origColor, cycleType = 'door') => {
+      this.doors.set(key, group);
+      group.userData.originalColor = origColor;
+      group.userData.cycleType = cycleType;
+      this.doorColors.set(key, 0);
+      this.puzzleDoorKeys.push(key);
+    };
+
     for (const [numStr, z] of Object.entries(LEFT_DOORS)) {
       const num = parseInt(numStr);
       const door = Doors.createLeft(this.scene, num, z);
-      this.doors.set(num, door);
+      storeDoor(num, door, COLORS.doorGlass);
     }
 
     for (const [numStr, z] of Object.entries(RIGHT_OFFICE_DOORS)) {
       const num = parseInt(numStr);
-      if (num === 802) {
-        const greenDoor = Doors.createGreen(this.scene, num, z);
-        this.doors.set(num, greenDoor);
-      } else {
-        const door = Doors.createRight(this.scene, num, z);
-        this.doors.set(num, door);
-      }
+      const door = Doors.createRight(this.scene, num, z);
+      storeDoor(num, door, COLORS.doorGlass);
     }
 
-    ElectricalDoor.create(this.scene, ELECTRICAL_Z.upper);
-    ElectricalDoor.create(this.scene, ELECTRICAL_Z.lower);
+    const elecUpper = ElectricalDoor.create(this.scene, ELECTRICAL_Z.upper);
+    storeDoor('electrical_upper', elecUpper, COLORS.electricalDoor, 'electrical');
 
-    Doors.createTop(this.scene, TOP_DOOR.num);
-    Doors.createBottom(this.scene, BOTTOM_DOOR.num);
+    const elecLower = ElectricalDoor.create(this.scene, ELECTRICAL_Z.lower);
+    storeDoor('electrical_lower', elecLower, COLORS.electricalDoor, 'electrical');
+
+    const escTop = this.core.escapeTopGroup;
+    const escBot = this.core.escapeBottomGroup;
+    if (escTop) storeDoor('escape_top', escTop, COLORS.escapeDoor, 'escape');
+    if (escBot) storeDoor('escape_bottom', escBot, COLORS.escapeDoor, 'escape');
 
     new Rug(this.scene);
     this.npc = new NPC(this.scene);
     this.npcPosition = this.npc.position;
 
+    this.box = new PuzzleBox(this.scene);
+    this.smoke = new SmokeEffect(this.scene);
+
     this.ceilingLights = new CeilingLights(this.scene, this.lightFlicker);
     this.signage = new Signage(this.scene);
     this.securityCam = new SecurityCam(this.scene);
+
+    this.ambientLight = this.sceneManager.ambient;
+    this.dirLight = this.sceneManager.dirLight;
+    this.fillLight = this.sceneManager.fillLight;
+
+    const door811 = Doors.createTop(this.scene, TOP_DOOR.num);
+    this.doors.set(TOP_DOOR.num, door811);
+    door811.userData.originalColor = COLORS.doorGlass;
+    this.puzzleDoorKeys.push(TOP_DOOR.num);
+    this.doorColors.set(TOP_DOOR.num, 0);
+
+    const door803 = Doors.createBottom(this.scene, BOTTOM_DOOR.num);
+    this.doors.set(BOTTOM_DOOR.num, door803);
+    door803.userData.originalColor = COLORS.doorGlass;
+    this.puzzleDoorKeys.push(BOTTOM_DOOR.num);
+    this.doorColors.set(BOTTOM_DOOR.num, 0);
 
     this._addColliders();
   }
@@ -198,7 +317,7 @@ export class Game {
     createBox(cabinDepth, H, 0.2, cabinCenterX, H / 2, halfW);
     createBox(0.2, H, ELEVATOR.width, cabinEndX, H / 2, 0);
 
-    createBox(0.6, 1.7, 0.6, -1.0, 0.85, 10);
+    createBox(0.6, 1.7, 0.6, -1.0, 0.85, 8.5);
   }
 
   start() {
@@ -210,7 +329,8 @@ export class Game {
         if (!this.audioManager.started) {
           this.audioManager.init();
           this.audioManager.startAmbient();
-          this.audioManager.startMusic();
+          this.audioManager.startCorridorMusic();
+          this.audioManager.startElevatorMusic();
         }
         if (!this.locked) {
           this.playerController.lock();
@@ -248,7 +368,6 @@ export class Game {
         this.elevatorPhase = 2;
         this.elevatorTimer = 0;
         this.audioManager.playDing();
-        this.audioManager.startMusic();
       }
     } else if (this.elevatorPhase === 2) {
       this.elevatorTimer += dt;
@@ -279,8 +398,17 @@ export class Game {
 
     if (this.elevatorOpened) {
       const px = this.playerController.position.x;
-      const vol = Math.max(0, Math.min(1, (px - 2) / 1.5)) * 0.1;
-      this.audioManager.setMusicVolume(vol);
+      if (px > 2.5) {
+        this.audioManager.setElevatorVolume(0.15);
+        this.audioManager.setCorridorVolume(0);
+      } else if (px < 2) {
+        this.audioManager.setElevatorVolume(0);
+        this.audioManager.setCorridorVolume(0.1);
+      } else {
+        const t = (px - 2) / 0.5;
+        this.audioManager.setElevatorVolume(t * 0.15);
+        this.audioManager.setCorridorVolume((1 - t) * 0.1);
+      }
     }
 
     if (this.elevatorOpened && this.npcPosition) {
@@ -289,7 +417,7 @@ export class Game {
         if (this.dialogOpen) {
           this.uiManager.hideInteraction();
         } else {
-          this.uiManager.showInteraction('[F] para continuar');
+          this.uiManager.showInteraction('[F] para hablar');
           if (this.interactPressed) {
             this.interactPressed = false;
             this.dialogPart = 0;
@@ -330,6 +458,122 @@ export class Game {
         this.timerRunning = false;
         this.playerController.unlock();
         document.getElementById('gameover').classList.add('open');
+      }
+    }
+
+    if (this.smoke) {
+      this.smoke.update(dt, this.timerRunning ? Math.max(0, this.timerDuration - this.timerElapsed) : 300);
+    }
+
+    if (this.box) this.box.update(dt);
+
+    if (!this.puzzleSolved && !this.won && !this.dialogOpen && this.box) {
+      const bp = new THREE.Vector3();
+      this.box.group.getWorldPosition(bp);
+      const dist = this.playerController.position.distanceTo(bp);
+      if (dist < 1.8) {
+        this.uiManager.showInteraction('[F] Interactuar');
+        if (this.interactPressed) {
+          this.interactPressed = false;
+          this.uiManager.showMessage('codigo incorrecto', 'error', 2000);
+        }
+      }
+    }
+
+    if (this.puzzleSolved && !this.keyObtained && !this.won) {
+      const kp = this.box.getKeyWorldPosition();
+      const dist = this.playerController.position.distanceTo(kp);
+      if (dist < 1.8) {
+        this.uiManager.showInteraction('[F] Tomar llave');
+        if (this.interactPressed) {
+          this.interactPressed = false;
+          this._takeKey();
+        }
+      }
+    }
+
+    if (this.elevatorOpened && !this.won && !this.dialogOpen && !this.gameOver
+        && !(this.puzzleSolved && !this.keyObtained)
+        && !(!this.puzzleSolved && this.box && this.playerController.position.distanceTo(this.box.group.position) < 1.8)) {
+      const px = this.playerController.position;
+      const doorKeys = this.puzzleDoorKeys;
+      let nearDoor = null;
+      let nearestDist = 1.8;
+
+      for (const key of doorKeys) {
+        const group = this.doors.get(key);
+        if (!group) continue;
+        const wp = new THREE.Vector3();
+        group.getWorldPosition(wp);
+        const dist = px.distanceTo(wp);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearDoor = key;
+        }
+      }
+
+      if (nearDoor !== null) {
+        if (nearDoor === 811) {
+          this.uiManager.showInteraction('[F] Interactuar');
+          if (this.interactPressed) {
+            this.interactPressed = false;
+            if (!this.lightsOut) this._lightsOut();
+          }
+        } else if (nearDoor === 803) {
+          this.uiManager.showInteraction('[F] Interactuar');
+          if (this.interactPressed) {
+            this.interactPressed = false;
+            if (!this.dizzy) this._triggerDizzy();
+          }
+        } else {
+          this.uiManager.showInteraction('[F] para interactuar');
+          if (this.interactPressed) {
+            this.interactPressed = false;
+            this._cycleDoorColor(nearDoor);
+          }
+        }
+      } else {
+        this.uiManager.hideInteraction();
+      }
+    }
+
+    if (this.lightsOut) {
+      this.lightsOutTimer += dt;
+      if (this.lightsOutTimer >= LIGHTS_OUT_DURATION) {
+        this.lightsOut = false;
+        this.ambientLight.intensity = this.origAmbient;
+        this.dirLight.intensity = this.origDir;
+        this.fillLight.intensity = this.origFill;
+      }
+    }
+
+    if (this.dizzy) {
+      this.dizzyTimer += dt;
+      const progress = this.dizzyTimer / DIZZY_DURATION;
+      const pulse = Math.sin(progress * Math.PI * 8) * 0.15 + 0.15;
+      this.camera.fov = 75 + Math.sin(progress * Math.PI * 6) * 1.5;
+      this.camera.updateProjectionMatrix();
+      if (this.dizzyOverlay) {
+        this.dizzyOverlay.style.opacity = String((1 - progress) * pulse * 2);
+      }
+      if (progress >= 1) {
+        this.dizzy = false;
+        this.camera.fov = 75;
+        this.camera.updateProjectionMatrix();
+        if (this.dizzyOverlay) this.dizzyOverlay.style.opacity = '0';
+      }
+    }
+
+    if (this.won) {
+      this.wonTimer += dt;
+      const intensity = Math.min(1, this.wonTimer / 2);
+      this.sceneManager.renderer.toneMappingExposure = 0.95 + intensity * 3;
+      const overlay = document.getElementById('win-overlay');
+      if (overlay) {
+        overlay.style.background = 'rgba(255,255,255,' + (intensity * 0.3) + ')';
+      }
+      if (this.wonTimer > 3) {
+        document.getElementById('win-text').style.opacity = '1';
       }
     }
 

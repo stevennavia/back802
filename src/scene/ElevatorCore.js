@@ -8,6 +8,8 @@ export class ElevatorCore {
   constructor(scene) {
     this.scene = scene;
     this.openDoors = [];
+    this.escapeTopGroup = null;
+    this.escapeBottomGroup = null;
     this.build();
   }
 
@@ -87,12 +89,7 @@ export class ElevatorCore {
     coreCeiling.receiveShadow = true;
     this.scene.add(coreCeiling);
 
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x9a928a,
-      roughness: 0.4,
-      metalness: 0.1,
-      side: THREE.DoubleSide,
-    });
+    const floorMat = TextureGenerator.createFloorMaterial();
     const coreFloor = new THREE.Mesh(
       new THREE.PlaneGeometry(core.farX - core.nearX, core.openingZMax - core.openingZMin),
       floorMat
@@ -106,8 +103,8 @@ export class ElevatorCore {
     coreFloor.receiveShadow = true;
     this.scene.add(coreFloor);
 
-    EscapeDoor.create(this.scene, core.farX, core.elements.escapeTop);
-    EscapeDoor.create(this.scene, core.farX, core.elements.escapeBottom);
+    this.escapeTopGroup = EscapeDoor.create(this.scene, core.farX, core.elements.escapeTop);
+    this.escapeBottomGroup = EscapeDoor.create(this.scene, core.farX, core.elements.escapeBottom);
 
     this._createCabin(core);
 
@@ -154,7 +151,7 @@ export class ElevatorCore {
       roughness: 0.5,
       metalness: 0,
       emissive: 0xffffff,
-      emissiveIntensity: 0.3,
+      emissiveIntensity: 0.6,
       side: THREE.DoubleSide,
     });
     const ceiling = new THREE.Mesh(
@@ -165,31 +162,52 @@ export class ElevatorCore {
     ceiling.position.set(cabinCenterX, H, 0);
     this.scene.add(ceiling);
 
-    const leftWall = new THREE.Mesh(
-      new THREE.PlaneGeometry(depth, H),
-      whiteMat
-    );
-    leftWall.position.set(cabinCenterX, H / 2, -halfW);
-    leftWall.rotation.y = Math.PI;
-    this.scene.add(leftWall);
+    const alumMat = new THREE.MeshStandardMaterial({
+      color: 0x888899,
+      roughness: 0.4,
+      metalness: 0.7,
+      side: THREE.DoubleSide,
+    });
 
-    const rightWall = new THREE.Mesh(
-      new THREE.PlaneGeometry(depth, H),
-      whiteMat
-    );
-    rightWall.position.set(cabinCenterX, H / 2, halfW);
-    this.scene.add(rightWall);
+    const mirrorMat = new THREE.MeshPhysicalMaterial({
+      color: 0x222233,
+      metalness: 1.0,
+      roughness: 0.05,
+      side: THREE.DoubleSide,
+    });
 
-    const backWall = new THREE.Mesh(
-      new THREE.PlaneGeometry(ELEVATOR.width, H),
-      whiteMat
-    );
-    backWall.position.set(cabinEndX, H / 2, 0);
-    backWall.rotation.y = Math.PI / 2;
-    this.scene.add(backWall);
+    const wallConfig = [
+      { posZ: -halfW, rotY: Math.PI, w: depth, label: 'left' },
+      { posZ: halfW, rotY: 0, w: depth, label: 'right' },
+      { posX: cabinEndX, rotY: Math.PI / 2, w: ELEVATOR.width, label: 'back' },
+    ];
 
-    const light = new THREE.PointLight(0xffffff, 2.5, 6);
+    for (const cfg of wallConfig) {
+      const halfH = H / 2;
+
+      const bottom = new THREE.Mesh(
+        new THREE.PlaneGeometry(cfg.w, halfH),
+        alumMat
+      );
+      bottom.position.set(cfg.posX || cabinCenterX, halfH / 2, cfg.posZ || 0);
+      bottom.rotation.y = cfg.rotY;
+      this.scene.add(bottom);
+
+      const top = new THREE.Mesh(
+        new THREE.PlaneGeometry(cfg.w, halfH),
+        mirrorMat
+      );
+      top.position.set(cfg.posX || cabinCenterX, halfH + halfH / 2, cfg.posZ || 0);
+      top.rotation.y = cfg.rotY;
+      this.scene.add(top);
+    }
+
+    const light = new THREE.PointLight(0xffffff, 4, 6);
     light.position.set(cabinCenterX, H - 0.3, 0);
     this.scene.add(light);
+
+    const fill = new THREE.PointLight(0xddeeff, 1.5, 5);
+    fill.position.set(cabinCenterX, H * 0.3, 0);
+    this.scene.add(fill);
   }
 }

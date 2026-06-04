@@ -5,7 +5,7 @@ export class NPC {
   constructor(scene) {
     this.scene = scene;
     this.mesh = null;
-    this.position = new THREE.Vector3(-1.0, 0, 10);
+    this.position = new THREE.Vector3(-1.0, 0, 8.5);
     this.load();
   }
 
@@ -17,7 +17,7 @@ export class NPC {
         this.mesh = gltf.scene;
         this.mesh.scale.set(1.1, 1.1, 1.1);
         this.mesh.rotation.y = Math.PI;
-        this.mesh.position.set(-1.0, 0, 10);
+        this.mesh.position.set(-1.0, 0, 8.5);
         this.scene.add(this.mesh);
 
         this.mesh.traverse((child) => {

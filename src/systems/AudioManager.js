@@ -9,6 +9,9 @@ export class AudioManager {
     this.musicGain = null;
     this.musicSource = null;
     this.musicBuffer = null;
+    this.elevatorGain = null;
+    this.elevatorSource = null;
+    this.elevatorBuffer = null;
     this.gontalkBuffer = null;
     this.gontalkSource = null;
   }
@@ -167,7 +170,7 @@ export class AudioManager {
       .catch(() => console.warn('Could not load ding.mp3'));
   }
 
-  startMusic() {
+  startCorridorMusic() {
     if (!this.ctx || this.musicSource) return;
 
     this.musicGain = this.ctx.createGain();
@@ -188,20 +191,57 @@ export class AudioManager {
       return;
     }
 
-    fetch('/music.mp3')
+    fetch('/music2.mp3')
       .then((res) => res.arrayBuffer())
       .then((buf) => this.ctx.decodeAudioData(buf))
       .then((buf) => {
         this.musicBuffer = buf;
         if (!this.musicSource) play(buf);
       })
-      .catch(() => console.warn('Could not load music.mp3'));
+      .catch(() => console.warn('Could not load music2.mp3'));
   }
 
-  setMusicVolume(vol) {
+  startElevatorMusic() {
+    if (!this.ctx || this.elevatorSource) return;
+
+    this.elevatorGain = this.ctx.createGain();
+    this.elevatorGain.gain.value = 0.15;
+    this.elevatorGain.connect(this.masterGain);
+
+    const play = (buf) => {
+      this.elevatorBuffer = buf;
+      this.elevatorSource = this.ctx.createBufferSource();
+      this.elevatorSource.buffer = buf;
+      this.elevatorSource.loop = true;
+      this.elevatorSource.connect(this.elevatorGain);
+      this.elevatorSource.start();
+    };
+
+    if (this.elevatorBuffer) {
+      play(this.elevatorBuffer);
+      return;
+    }
+
+    fetch('/elevator.mp3')
+      .then((res) => res.arrayBuffer())
+      .then((buf) => this.ctx.decodeAudioData(buf))
+      .then((buf) => {
+        this.elevatorBuffer = buf;
+        if (!this.elevatorSource) play(buf);
+      })
+      .catch(() => console.warn('Could not load elevator.mp3'));
+  }
+
+  setCorridorVolume(vol) {
     if (!this.musicGain) return;
     const now = this.ctx.currentTime;
-    this.musicGain.gain.setTargetAtTime(Math.max(0, vol), now, 0.1);
+    this.musicGain.gain.setTargetAtTime(Math.max(0, vol), now, 0.3);
+  }
+
+  setElevatorVolume(vol) {
+    if (!this.elevatorGain) return;
+    const now = this.ctx.currentTime;
+    this.elevatorGain.gain.setTargetAtTime(Math.max(0, vol), now, 0.3);
   }
 
   playGontalk() {

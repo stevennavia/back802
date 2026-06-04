@@ -77,6 +77,28 @@
       font-size: 48px; letter-spacing: 8px;
       text-shadow: 0 0 20px rgba(200,0,0,0.5);
     }
+    #win-overlay {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      justify-content: center; align-items: center;
+      z-index: 40; pointer-events: auto;
+      background: rgba(255,255,255,0);
+      transition: background 2s;
+    }
+    #win-overlay.open { display: flex; }
+    #win-text {
+      color: #fff; font-family: 'Courier New', monospace;
+      font-size: 52px; letter-spacing: 6px;
+      text-shadow: 0 0 40px rgba(255,255,255,0.8);
+      opacity: 0; transition: opacity 1s;
+    }
+    #dizzy-overlay {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 15;
+      background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+      opacity: 0; transition: opacity 0.1s;
+    }
     #npc-dialog {
       display: none; position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
@@ -127,9 +149,13 @@
     <div id="context-text"></div>
     <div id="message" class="message"></div>
     <div id="hint">Haz clic para comenzar</div>
+    <div id="dizzy-overlay"></div>
     <div id="timer">5:00</div>
     <div id="gameover">
       <div id="gameover-text">GAME OVER</div>
+    </div>
+    <div id="win-overlay">
+      <div id="win-text">bien wn, ganaste</div>
     </div>
     <div id="npc-dialog">
       <div id="npc-dialog-bg"></div>

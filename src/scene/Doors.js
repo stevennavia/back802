@@ -169,6 +169,16 @@ export class Doors {
     return group;
   }
 
+  static cycleColor(group, colorHex) {
+    const mesh = group.children[3];
+    if (!mesh || !mesh.material) return;
+    if (colorHex === null) {
+      mesh.material.color.setHex(group.userData.originalColor || 0xadd8e6);
+    } else {
+      mesh.material.color.setHex(colorHex);
+    }
+  }
+
   static createEndDoor(scene, z) {
     return Doors.createTop(scene, 999);
   }
