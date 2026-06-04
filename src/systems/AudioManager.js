@@ -55,18 +55,22 @@ export class AudioManager {
       }
     };
 
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) suspend();
+    const handler = () => {
+      if (document.hidden || !document.hasFocus()) suspend();
       else resume();
-    });
+    };
 
+    document.addEventListener('visibilitychange', handler);
+    document.addEventListener('webkitvisibilitychange', handler);
     window.addEventListener('blur', suspend);
     window.addEventListener('focus', resume);
-
     window.addEventListener('pagehide', suspend);
     window.addEventListener('pageshow', (e) => {
       if (e.persisted) resume();
     });
+    window.addEventListener('beforeunload', suspend);
+
+    setInterval(handler, 2000);
   }
 
   startAmbient() {
