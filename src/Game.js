@@ -111,6 +111,8 @@ export class Game {
     this.neonTimer = 0;
     this.neonReady = false;
 
+    this.isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
     this.setupScene();
 
     this.origAmbient = this.ambientLight ? this.ambientLight.intensity : 0.3;
@@ -522,10 +524,8 @@ export class Game {
       }
     }
 
-    if (!window.matchMedia('(pointer: coarse)').matches) {
-      this.audioManager.startCorridorMusic();
-      this.audioManager.startElevatorMusic();
-    }
+    this.audioManager.startCorridorMusic();
+    this.audioManager.startElevatorMusic();
 
     this.playerController.lock();
     this.running = true;
@@ -588,16 +588,17 @@ export class Game {
 
     if (this.elevatorOpened) {
       const px = this.playerController.position.x;
+      const volMul = this.isMobile ? 0.5 : 1;
       if (px > 2.5) {
-        this.audioManager.setElevatorVolume(0.15);
+        this.audioManager.setElevatorVolume(0.15 * volMul);
         this.audioManager.setCorridorVolume(0);
       } else if (px < 2) {
         this.audioManager.setElevatorVolume(0);
-        this.audioManager.setCorridorVolume(0.1);
+        this.audioManager.setCorridorVolume(0.1 * volMul);
       } else {
         const t = (px - 2) / 0.5;
-        this.audioManager.setElevatorVolume(t * 0.15);
-        this.audioManager.setCorridorVolume((1 - t) * 0.1);
+        this.audioManager.setElevatorVolume(t * 0.15 * volMul);
+        this.audioManager.setCorridorVolume((1 - t) * 0.1 * volMul);
       }
     }
 
