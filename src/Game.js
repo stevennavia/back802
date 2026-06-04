@@ -486,7 +486,7 @@ export class Game {
 
   start() {
     this.audioManager.init();
-    this.audioManager.startAmbient();
+    if (!this.isMobile) this.audioManager.startAmbient();
 
     const resumeAudio = () => {
       if (this.audioManager.ctx && this.audioManager.ctx.state === 'suspended') {
