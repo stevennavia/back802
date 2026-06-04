@@ -64,9 +64,10 @@ export class PlayerController {
           this._touchLookLast.y = y;
         }
       }
-    }, { passive: true });
+    }, { passive: false });
 
     el.addEventListener('touchmove', (e) => {
+      e.preventDefault();
       for (const touch of e.changedTouches) {
         const x = touch.clientX;
         const y = touch.clientY;
@@ -74,7 +75,7 @@ export class PlayerController {
         if (touch.identifier === this._touchMoveId) {
           const dx = x - this._touchMoveCenter.x;
           const dy = y - this._touchMoveCenter.y;
-          const dead = 20;
+          const dead = 12;
 
           this.moveLeft = dx < -dead;
           this.moveRight = dx > dead;
@@ -86,8 +87,8 @@ export class PlayerController {
           const dx = x - this._touchLookLast.x;
           const dy = y - this._touchLookLast.y;
           this._euler.setFromQuaternion(this.camera.quaternion);
-          this._euler.y -= dx * this.mouseSensitivity;
-          this._euler.x -= dy * this.mouseSensitivity;
+          this._euler.y -= dx * this.mouseSensitivity * 2.0;
+          this._euler.x -= dy * this.mouseSensitivity * 2.0;
           this.camera.quaternion.setFromEuler(this._euler);
           this._touchLookLast.x = x;
           this._touchLookLast.y = y;
