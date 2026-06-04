@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MAP, BOUNDS } from '../utils/constants.js';
+import { MAP, BOUNDS, DOOR } from '../utils/constants.js';
 import { TextureGenerator } from '../utils/TextureGenerator.js';
 
 export class Hallway {
@@ -71,6 +71,31 @@ export class Hallway {
     rightLower.position.set(R, H / 2, lowerZ);
     rightLower.rotation.y = -Math.PI / 2;
     this.scene.add(rightLower);
+
+    const doorZ = 12.8;
+    const halfW = DOOR.width / 2;
+    const rl1Len = (doorZ - halfW) - coreOpen;
+    const rl2Len = B - (doorZ + halfW);
+    const rl1Z = (coreOpen + (doorZ - halfW)) / 2;
+    const rl2Z = ((doorZ + halfW) + B) / 2;
+
+    this.scene.remove(rightLower);
+
+    const rightLowSeg1 = new THREE.Mesh(
+      new THREE.PlaneGeometry(rl1Len, H),
+      wallMat
+    );
+    rightLowSeg1.position.set(R, H / 2, rl1Z);
+    rightLowSeg1.rotation.y = -Math.PI / 2;
+    this.scene.add(rightLowSeg1);
+
+    const rightLowSeg2 = new THREE.Mesh(
+      new THREE.PlaneGeometry(rl2Len, H),
+      wallMat
+    );
+    rightLowSeg2.position.set(R, H / 2, rl2Z);
+    rightLowSeg2.rotation.y = -Math.PI / 2;
+    this.scene.add(rightLowSeg2);
 
     const topWall = new THREE.Mesh(new THREE.PlaneGeometry(W, H), wallMat);
     topWall.position.set(0, H / 2, T);

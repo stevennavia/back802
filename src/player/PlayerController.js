@@ -54,13 +54,9 @@ export class PlayerController {
     if (this.controls.domElement.ownerDocument.pointerLockElement === this.controls.domElement) {
       this.controls.isLocked = true;
       this.locked = true;
-      const hint = document.getElementById('hint');
-      if (hint) hint.style.opacity = '0';
     } else {
       this.controls.isLocked = false;
       this.locked = false;
-      const hint = document.getElementById('hint');
-      if (hint) hint.style.opacity = '1';
     }
   }
 
@@ -77,14 +73,10 @@ export class PlayerController {
 
     this.controls.addEventListener('lock', () => {
       this.locked = true;
-      const hint = document.getElementById('hint');
-      if (hint) hint.style.opacity = '0';
     });
 
     this.controls.addEventListener('unlock', () => {
       this.locked = false;
-      const hint = document.getElementById('hint');
-      if (hint) hint.style.opacity = '1';
     });
 
     window.addEventListener('keydown', (e) => {

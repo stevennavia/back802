@@ -96,6 +96,12 @@ export class Game {
     this.dizzyTimer = 0;
     this.dizzyOverlay = document.getElementById('dizzy-overlay');
 
+    this.door802AnimTimer = 0;
+    this.door802WinLight = null;
+    this.door802AnimDone = false;
+    this.room802Created = false;
+    this.room802Colliders = [];
+
     this.setupScene();
 
     window.addEventListener('keydown', (e) => {
@@ -158,45 +164,102 @@ export class Game {
     if (this.box) {
       this.box.open();
       const bp = this.box.getBoxWorldPosition();
-      this.playerController.autoZoom = new THREE.Vector3(bp.x, bp.y + 0.2, bp.z - 1);
-      this.playerController.lock();
+      this.camera.position.set(0.5, bp.y + 0.2, bp.z - 0.8);
+      this.camera.lookAt(bp);
     }
     this.audioManager.playCorrect();
-  }
 
-  _takeKey() {
-    if (this.keyObtained) return;
     this.keyObtained = true;
     if (this.box) this.box.takeKey();
     this.uiManager.hideInteraction();
 
-    const door802 = this.doors.get(802);
-    if (door802) this.scene.remove(door802);
-
-    const winLight = new THREE.PointLight(0xffffff, 50, 20);
-    winLight.position.set(2, 1.5, 12.8);
-    this.scene.add(winLight);
-
-    const winOverlay = document.getElementById('win-overlay');
-    if (winOverlay) winOverlay.classList.add('open');
-
-    this.playerController.unlock();
+    const door802 = this.doors.get('802');
+    if (door802) {
+      this.door802AnimTimer = 0;
+      this.door802WinLight = new THREE.PointLight(0xffffff, 0, 15);
+      this.door802WinLight.position.set(2, 1.5, 12.8);
+      this.scene.add(this.door802WinLight);
+    }
     this.won = true;
     this.wonTimer = 0;
   }
 
-  _lightsOut() {
-    this.lightsOut = true;
-    this.lightsOutTimer = 0;
-    this.ambientLight.intensity = 0.02;
-    this.dirLight.intensity = 0.01;
-    this.fillLight.intensity = 0;
-  }
+  _createRoom802() {
+    if (this.room802Created) return;
+    this.room802Created = true;
 
-  _triggerDizzy() {
-    this.dizzy = true;
-    this.dizzyTimer = 0;
-    if (this.dizzyOverlay) this.dizzyOverlay.style.opacity = '0.35';
+    const H = 2.5;
+    const depth = 2.5;
+    const halfW = 0.65;
+    const roomX = 2.05;
+    const roomEndX = roomX + depth;
+    const roomCX = (roomX + roomEndX) / 2;
+    const doorZ = 12.8;
+
+    const whiteMat = new THREE.MeshStandardMaterial({
+      color: 0xf8f8f8,
+      roughness: 0.6,
+      metalness: 0,
+      side: THREE.DoubleSide,
+    });
+
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0xe8e8e8,
+      roughness: 0.4,
+      metalness: 0.1,
+      side: THREE.DoubleSide,
+    });
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(depth, halfW * 2),
+      floorMat
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(roomCX, 0.002, doorZ);
+    this.scene.add(floor);
+
+    const ceilMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.5,
+      metalness: 0,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.4,
+      side: THREE.DoubleSide,
+    });
+    const ceiling = new THREE.Mesh(
+      new THREE.PlaneGeometry(depth, halfW * 2),
+      ceilMat
+    );
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(roomCX, H, doorZ);
+    this.scene.add(ceiling);
+
+    const leftWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(depth, H),
+      whiteMat
+    );
+    leftWall.position.set(roomCX, H / 2, doorZ - halfW);
+    leftWall.rotation.y = Math.PI;
+    this.scene.add(leftWall);
+
+    const rightWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(depth, H),
+      whiteMat
+    );
+    rightWall.position.set(roomCX, H / 2, doorZ + halfW);
+    this.scene.add(rightWall);
+
+    const backWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(halfW * 2, H),
+      whiteMat
+    );
+    backWall.position.set(roomEndX, H / 2, doorZ);
+    backWall.rotation.y = Math.PI / 2;
+    this.scene.add(backWall);
+
+    const insideLight = new THREE.PointLight(0xffffff, 4, 6);
+    insideLight.position.set(roomCX, H - 0.3, doorZ);
+    this.scene.add(insideLight);
   }
 
   setupScene() {
@@ -210,23 +273,22 @@ export class Game {
     }
 
     const storeDoor = (key, group, origColor, cycleType = 'door') => {
-      this.doors.set(key, group);
+      const k = String(key);
+      this.doors.set(k, group);
       group.userData.originalColor = origColor;
       group.userData.cycleType = cycleType;
-      this.doorColors.set(key, 0);
-      this.puzzleDoorKeys.push(key);
+      this.doorColors.set(k, 0);
+      this.puzzleDoorKeys.push(k);
     };
 
     for (const [numStr, z] of Object.entries(LEFT_DOORS)) {
-      const num = parseInt(numStr);
-      const door = Doors.createLeft(this.scene, num, z);
-      storeDoor(num, door, COLORS.doorGlass);
+      const door = Doors.createLeft(this.scene, parseInt(numStr), z);
+      storeDoor(numStr, door, COLORS.doorGlass);
     }
 
     for (const [numStr, z] of Object.entries(RIGHT_OFFICE_DOORS)) {
-      const num = parseInt(numStr);
-      const door = Doors.createRight(this.scene, num, z);
-      storeDoor(num, door, COLORS.doorGlass);
+      const door = Doors.createRight(this.scene, parseInt(numStr), z);
+      storeDoor(numStr, door, COLORS.doorGlass);
     }
 
     const elecUpper = ElectricalDoor.create(this.scene, ELECTRICAL_Z.upper);
@@ -256,16 +318,16 @@ export class Game {
     this.fillLight = this.sceneManager.fillLight;
 
     const door811 = Doors.createTop(this.scene, TOP_DOOR.num);
-    this.doors.set(TOP_DOOR.num, door811);
+    this.doors.set('811', door811);
     door811.userData.originalColor = COLORS.doorGlass;
-    this.puzzleDoorKeys.push(TOP_DOOR.num);
-    this.doorColors.set(TOP_DOOR.num, 0);
+    this.puzzleDoorKeys.push('811');
+    this.doorColors.set('811', 0);
 
     const door803 = Doors.createBottom(this.scene, BOTTOM_DOOR.num);
-    this.doors.set(BOTTOM_DOOR.num, door803);
+    this.doors.set('803', door803);
     door803.userData.originalColor = COLORS.doorGlass;
-    this.puzzleDoorKeys.push(BOTTOM_DOOR.num);
-    this.doorColors.set(BOTTOM_DOOR.num, 0);
+    this.puzzleDoorKeys.push('803');
+    this.doorColors.set('803', 0);
 
     this._addColliders();
   }
@@ -288,9 +350,18 @@ export class Game {
     const upperZ = (BOUNDS.top + (-coreOpen)) / 2;
     createBox(0.2, H, upperLen, BOUNDS.right, H / 2, upperZ);
 
-    const lowerLen = BOUNDS.bottom - coreOpen;
-    const lowerZ = (coreOpen + BOUNDS.bottom) / 2;
-    createBox(0.2, H, lowerLen, BOUNDS.right, H / 2, lowerZ);
+    const door802Z = 12.8;
+    const halfDoorW = 0.65;
+    const dw1Len = (door802Z - halfDoorW) - coreOpen;
+    const dw1Z = (coreOpen + (door802Z - halfDoorW)) / 2;
+    const rc1 = createBox(0.2, H, dw1Len, BOUNDS.right, H / 2, dw1Z);
+
+    const dw2Len = BOUNDS.bottom - (door802Z + halfDoorW);
+    const dw2Z = ((door802Z + halfDoorW) + BOUNDS.bottom) / 2;
+    const rc2 = createBox(0.2, H, dw2Len, BOUNDS.right, H / 2, dw2Z);
+
+    this.rightWallCollider1 = rc1;
+    this.rightWallCollider2 = rc2;
 
     createBox(MAP.width, H, 0.2, 0, H / 2, BOUNDS.top);
     createBox(MAP.width, H, 0.2, 0, H / 2, BOUNDS.bottom);
@@ -321,28 +392,29 @@ export class Game {
   }
 
   start() {
+    document.getElementById('cover-btn').addEventListener('click', () => this.startFromCover());
+    window.addEventListener('keydown', () => {
+      const cover = document.getElementById('cover');
+      if (cover && !cover.classList.contains('hidden')) this.startFromCover();
+    }, { once: true });
+  }
+
+  startFromCover() {
+    if (this.running) return;
+    const cover = document.getElementById('cover');
+    if (cover) cover.classList.add('hidden');
+
+    this.audioManager.init();
+    this.audioManager.startAmbient();
+    this.audioManager.startCorridorMusic();
+    this.audioManager.startElevatorMusic();
+
+    this.playerController.lock();
     this.running = true;
 
-    this.sceneManager.renderer.domElement.addEventListener(
-      'click',
-      () => {
-        if (!this.audioManager.started) {
-          this.audioManager.init();
-          this.audioManager.startAmbient();
-          this.audioManager.startCorridorMusic();
-          this.audioManager.startElevatorMusic();
-        }
-        if (!this.locked) {
-          this.playerController.lock();
-        }
-        if (this.elevatorPhase === 0) {
-          this.elevatorPhase = 1;
-          this.elevatorTimer = 0;
-          this.audioManager.playElevatorArrival();
-        }
-      },
-      { once: false }
-    );
+    this.elevatorPhase = 1;
+    this.elevatorTimer = 0;
+    this.audioManager.playElevatorArrival();
 
     this.locked = false;
     this.sceneManager.renderer.domElement.addEventListener(
@@ -471,7 +543,7 @@ export class Game {
       const bp = new THREE.Vector3();
       this.box.group.getWorldPosition(bp);
       const dist = this.playerController.position.distanceTo(bp);
-      if (dist < 1.8) {
+      if (dist < 1.2) {
         this.uiManager.showInteraction('[F] Interactuar');
         if (this.interactPressed) {
           this.interactPressed = false;
@@ -483,7 +555,7 @@ export class Game {
     if (this.puzzleSolved && !this.keyObtained && !this.won) {
       const kp = this.box.getKeyWorldPosition();
       const dist = this.playerController.position.distanceTo(kp);
-      if (dist < 1.8) {
+      if (dist < 1.2) {
         this.uiManager.showInteraction('[F] Tomar llave');
         if (this.interactPressed) {
           this.interactPressed = false;
@@ -498,7 +570,7 @@ export class Game {
       const px = this.playerController.position;
       const doorKeys = this.puzzleDoorKeys;
       let nearDoor = null;
-      let nearestDist = 1.8;
+      let nearestDist = 1.4;
 
       for (const key of doorKeys) {
         const group = this.doors.get(key);
@@ -513,13 +585,13 @@ export class Game {
       }
 
       if (nearDoor !== null) {
-        if (nearDoor === 811) {
+        if (nearDoor === '811') {
           this.uiManager.showInteraction('[F] Interactuar');
           if (this.interactPressed) {
             this.interactPressed = false;
             if (!this.lightsOut) this._lightsOut();
           }
-        } else if (nearDoor === 803) {
+        } else if (nearDoor === '803') {
           this.uiManager.showInteraction('[F] Interactuar');
           if (this.interactPressed) {
             this.interactPressed = false;
@@ -550,11 +622,11 @@ export class Game {
     if (this.dizzy) {
       this.dizzyTimer += dt;
       const progress = this.dizzyTimer / DIZZY_DURATION;
-      const pulse = Math.sin(progress * Math.PI * 8) * 0.15 + 0.15;
-      this.camera.fov = 75 + Math.sin(progress * Math.PI * 6) * 1.5;
+      const pulse = Math.sin(progress * Math.PI * 10) * 0.25 + 0.25;
+      this.camera.fov = 75 + Math.sin(progress * Math.PI * 8) * 3.5;
       this.camera.updateProjectionMatrix();
       if (this.dizzyOverlay) {
-        this.dizzyOverlay.style.opacity = String((1 - progress) * pulse * 2);
+        this.dizzyOverlay.style.opacity = String((1 - progress) * pulse * 3);
       }
       if (progress >= 1) {
         this.dizzy = false;
@@ -566,14 +638,62 @@ export class Game {
 
     if (this.won) {
       this.wonTimer += dt;
-      const intensity = Math.min(1, this.wonTimer / 2);
-      this.sceneManager.renderer.toneMappingExposure = 0.95 + intensity * 3;
+
+      const door802 = this.doors.get('802');
+      if (door802 && !this.door802AnimDone) {
+        this.door802AnimTimer += dt;
+        const t = Math.min(this.door802AnimTimer / 1.5, 1);
+        const ease = -(Math.cos(Math.PI * t) - 1) / 2;
+        door802.position.x = 1.95 + ease * 1.5;
+
+        const glass = door802.children[3];
+        if (glass && glass.material) glass.material.opacity = 0.6 * (1 - ease);
+
+        if (this.door802WinLight) {
+          this.door802WinLight.intensity = ease * 50;
+          this.door802WinLight.position.x = 2 + ease * 1.5;
+        }
+
+        const expDelay = 0.3;
+        const expT = Math.min(Math.max(0, (this.door802AnimTimer - expDelay) / 1.2), 1);
+        const expEase = -(Math.cos(Math.PI * expT) - 1) / 2;
+        this.sceneManager.renderer.toneMappingExposure = 0.95 + expEase * 8;
+
+        if (t >= 1) {
+          this.door802AnimDone = true;
+
+          if (this.rightWallCollider1) {
+            this.scene.remove(this.rightWallCollider1);
+            this.playerController.removeCollisionBox(this.rightWallCollider1);
+          }
+          if (this.rightWallCollider2) {
+            this.scene.remove(this.rightWallCollider2);
+            this.playerController.removeCollisionBox(this.rightWallCollider2);
+          }
+
+          this._createRoom802();
+          this.playerController.unlock();
+        }
+      }
+
+      if (this.door802AnimDone) {
+        if (!this.room802Created) {
+          this._createRoom802();
+          this.room802Created = true;
+        }
+      }
+
+      const overlayT = Math.min(Math.max(0, (this.wonTimer - 0.2) / 1.3), 1);
+      const overlayEase = -(Math.cos(Math.PI * overlayT) - 1) / 2;
       const overlay = document.getElementById('win-overlay');
       if (overlay) {
-        overlay.style.background = 'rgba(255,255,255,' + (intensity * 0.3) + ')';
+        overlay.style.background = 'rgba(255,255,255,' + (overlayEase * 1.0) + ')';
+        if (overlayEase > 0 && !overlay.classList.contains('open')) {
+          overlay.classList.add('open');
+        }
       }
-      if (this.wonTimer > 3) {
-        document.getElementById('win-text').style.opacity = '1';
+      if (this.wonTimer > 1.0) {
+        document.getElementById('win-text').style.opacity = String(Math.min(1, (this.wonTimer - 1.0) * 2));
       }
     }
 
