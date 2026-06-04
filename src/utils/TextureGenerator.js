@@ -93,9 +93,9 @@ export class TextureGenerator {
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#e0ddd8';
+    ctx.fillStyle = '#c8c4be';
     ctx.fillRect(0, 0, 128, 128);
-    ctx.strokeStyle = '#d0ccc6';
+    ctx.strokeStyle = '#b8b4ae';
     ctx.lineWidth = 1;
     ctx.strokeRect(2, 2, 124, 124);
     ctx.strokeRect(6, 6, 116, 116);
