@@ -15,6 +15,7 @@ export class AudioManager {
     this.gontalkBuffer = null;
     this.gontalkSource = null;
     this._audioSuspended = false;
+    this._savedGain = null;
     this._musicWasPlaying = false;
   }
 
@@ -37,17 +38,20 @@ export class AudioManager {
 
   _handleGameAudioLifecycle() {
     const suspend = () => {
-      if (this.ctx && this.ctx.state === 'running') {
-        this._musicWasPlaying = this.musicSource || this.elevatorSource;
-        this.ctx.suspend();
+      if (this.masterGain) {
+        this._savedGain = this.masterGain.gain.value;
+        this.masterGain.gain.value = 0;
         this._audioSuspended = true;
       }
     };
 
     const resume = () => {
-      if (this.ctx && this.ctx.state === 'suspended' && this._audioSuspended) {
-        this.ctx.resume();
+      if (this.masterGain && this._audioSuspended) {
+        this.masterGain.gain.value = this._savedGain || 0.3;
         this._audioSuspended = false;
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume();
       }
     };
 
