@@ -513,6 +513,9 @@ export class Game {
     const cover = document.getElementById('cover');
     if (cover) cover.classList.add('hidden');
 
+    const touchBtn = document.getElementById('touch-interact');
+    if (touchBtn) touchBtn.style.display = '';
+
     this.audioManager.startCorridorMusic();
     this.audioManager.startElevatorMusic();
 
