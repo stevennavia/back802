@@ -617,7 +617,7 @@ export class Game {
         if (this.dialogOpen) {
           this.uiManager.hideInteraction();
         } else {
-          this.uiManager.showInteraction('[F] para hablar');
+          this.uiManager.showInteraction('[F] para interactuar');
           if (this.interactPressed) {
             this.interactPressed = false;
             this.dialogPart = 0;
