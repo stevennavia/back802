@@ -516,8 +516,10 @@ export class Game {
     const touchBtn = document.getElementById('touch-interact');
     if (touchBtn) touchBtn.style.display = '';
 
-    this.audioManager.startCorridorMusic();
-    this.audioManager.startElevatorMusic();
+    if (!window.matchMedia('(pointer: coarse)').matches) {
+      this.audioManager.startCorridorMusic();
+      this.audioManager.startElevatorMusic();
+    }
 
     this.playerController.lock();
     this.running = true;
