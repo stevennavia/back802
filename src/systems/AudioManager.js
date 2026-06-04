@@ -14,6 +14,8 @@ export class AudioManager {
     this.elevatorBuffer = null;
     this.gontalkBuffer = null;
     this.gontalkSource = null;
+    this._audioSuspended = false;
+    this._musicWasPlaying = false;
   }
 
   init() {
@@ -27,9 +29,40 @@ export class AudioManager {
       if (this.ctx.state === 'suspended') {
         this.ctx.resume();
       }
+      this._handleGameAudioLifecycle();
     } catch (e) {
       console.warn('Audio not available');
     }
+  }
+
+  _handleGameAudioLifecycle() {
+    const suspend = () => {
+      if (this.ctx && this.ctx.state === 'running') {
+        this._musicWasPlaying = this.musicSource || this.elevatorSource;
+        this.ctx.suspend();
+        this._audioSuspended = true;
+      }
+    };
+
+    const resume = () => {
+      if (this.ctx && this.ctx.state === 'suspended' && this._audioSuspended) {
+        this.ctx.resume();
+        this._audioSuspended = false;
+      }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) suspend();
+      else resume();
+    });
+
+    window.addEventListener('blur', suspend);
+    window.addEventListener('focus', resume);
+
+    window.addEventListener('pagehide', suspend);
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) resume();
+    });
   }
 
   startAmbient() {
