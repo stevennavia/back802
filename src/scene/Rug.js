@@ -4,7 +4,7 @@ export class Rug {
   constructor(scene) {
     const loader = new THREE.TextureLoader();
     const tex = loader.load('/rug.png');
-    tex.rotation = Math.PI;
+    tex.rotation = -Math.PI / 2;
     tex.center.set(0.5, 0.5);
 
     const mat = new THREE.MeshStandardMaterial({
